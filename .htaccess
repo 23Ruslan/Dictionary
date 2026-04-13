@@ -1,0 +1,5 @@
+# deny access to a.json
+<FilesMatch "^a\.json$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
