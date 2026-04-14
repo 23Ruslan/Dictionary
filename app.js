@@ -6,6 +6,13 @@ window.onload = async () => {
     promptUserForAuth() // auth user
 }
 
+function speakText(word, language) {
+    const utterance = new SpeechSynthesisUtterance(word)
+    utterance.lang = language
+    utterance.rate = 0.8 // Скорость (0.5 - 2)
+    speechSynthesis.speak(utterance)
+}
+
 function clearFields() {
     document.querySelectorAll('textarea').forEach(input => {
         input.value = ''
@@ -35,16 +42,20 @@ async function loadAndDisplayNotes() {
 
 // Render list of string from server at html page
 function renderNotesList(words) {
-    const container = document.getElementById('words-list')
-    container.innerHTML = '' // clear old output
+    const container = document.getElementById('words-list');
+    
+    // Fill the table rows
+    const rows = words.map(word => `
+        <tr>
+            <td>${word.EnglishWord} <button onclick="speakText('${word.EnglishWord}','en-US')">🔊</button></td>
+            <td>${word.SpanishWord} <button onclick="speakText('${word.SpanishWord}','es-ES')">🔊</button></td>
+            <td>${word.RussianWord} </button></td>
+            <td><button onclick="removeNote('${word.EnglishWord}')">X</button></td>
+        </tr>
+    `).join('');
 
-    words.forEach(word => {
-        const itemDiv = document.createElement('div')
-        itemDiv.className = 'note-item'
-        itemDiv.innerHTML = ` ${word.EnglishWord} | ${word.SpanishWord} | ${word.RussianWord}
-        <span class="delete-btn" onclick="removeNote('${word.EnglishWord}')"> X</span> `
-        container.appendChild(itemDiv)
-    })
+    // innerHTML recreates the table
+    container.innerHTML = `<table>${rows}</table>`;
 }
 
 // Delete some string from json and html
