@@ -7,6 +7,27 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<div>Eng-Esp
+    <input type="text" id="en_es" placeholder="English">
+    <input type="text" id="tr_es" placeholder="Spanish">
+    <button onclick="handleAction('add', 'es')">add</button>
+    <button onclick="handleAction('edit', 'es')">edit</button>
+    <button onclick="handleAction('delete', 'es')">delete</button>
+</div>
+<br>
+<div id="list_es"></div>
+<div>Eng-Ru
+    <input type="text" id="en_ru" placeholder="English">
+    <input type="text" id="tr_ru" placeholder="Russian">
+    <button onclick="handleAction('add', 'ru')">add</button>
+    <button onclick="handleAction('edit', 'ru')">edit</button>
+    <button onclick="handleAction('delete', 'ru')">delete</button>
+</div>
+<br>
+<div id="list_ru"></div>
+
+
 <div id="message"></div>
 
 <!-- Forms for new strings -->
@@ -24,8 +45,10 @@
 let currentWords = [] // array loaded from server
 // loading page
 window.onload = async () => {
-    await loadAndDisplayNotes() // load strings from server
     promptUserForAuth() // auth user
+    await loadAndDisplayNotes() // load strings from server
+    loadData('es');
+    loadData('ru');
 }
 function speakTextSynthesis(text, language) {
     const utterance = new SpeechSynthesisUtterance(text)
@@ -101,12 +124,103 @@ async function saveNote() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add_word', 
-            EnglishWord: EnglishWord, SpanishWord: SpanishWord, RussianWord: RussianWord, 
-            p: authCode }),
+            EnglishWord: EnglishWord, SpanishWord: SpanishWord, RussianWord: RussianWord, p: authCode }),
     }).then(response => response.text()).then(data => {
         showMessage(data)
         loadAndDisplayNotes() // reload list
     }).catch(console.error)
+}
+</script>
+
+
+<script>
+// Save an original combination for editing in the future
+const selectedPair = {
+    es: { en: '', tr: '' },
+    ru: { en: '', tr: '' }
+};
+
+function loadData(dict) {
+    fetch('server.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', dict: dict })
+    })
+    .then(res => res.json())
+    .then(data => renderList(dict, data));
+}
+
+function renderList(dict, data) {
+    const container = document.getElementById('list_' + dict);
+    container.innerHTML = '';
+    const transKey = dict === 'es' ? 'spanish' : 'russian';
+
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = item.english + " - " + item[transKey];
+        div.style.cursor = 'pointer';
+        
+        div.onclick = function() {
+            document.getElementById('en_' + dict).value = item.english;
+            document.getElementById('tr_' + dict).value = item[transKey];
+            selectedPair[dict].en = item.english;
+            selectedPair[dict].tr = item[transKey];
+        };
+        container.appendChild(div);
+        
+        const btn = document.createElement('button');
+        btn.textContent = '🔊';
+        btn.style.marginLeft = '5px'; 
+        btn.style.border = 'none';
+        btn.style.background = 'none';
+        btn.style.cursor = 'pointer';
+        btn.onclick = function(e) { 
+            e.stopPropagation(); 
+            if (transKey === 'russian')
+                speakTextSynthesis(item.english,'en-US')
+            if (transKey === 'spanish')
+                speakTextResponsiveVoice(item[transKey],'Spanish Latin American Female')
+        };
+        div.appendChild(btn);
+    });
+}
+
+function handleAction(action, dict) {
+    const enInput = document.getElementById('en_' + dict).value.trim();
+    const trInput = document.getElementById('tr_' + dict).value.trim();
+    const authCode = document.getElementById('auth-code').value
+
+    if (!enInput || !trInput) {
+        alert("Enter the words");
+        return;
+    }
+
+    const payload = {
+        action: action,
+        dict: dict,
+        new_en: enInput,
+        new_tr: trInput,
+        old_en: selectedPair[dict].en,
+        old_tr: selectedPair[dict].tr, 
+        p: authCode
+    };
+
+    fetch('server.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(response => {
+        if (response.success) {
+            loadData(dict);
+            document.getElementById('en_' + dict).value = '';
+            document.getElementById('tr_' + dict).value = '';
+            selectedPair[dict] = { en: '', tr: '' };
+        } else {
+            alert(response.error);
+        }
+    });
 }
 </script>
 </body>
